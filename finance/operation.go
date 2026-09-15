@@ -1,6 +1,36 @@
 package finance
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+func Run() () {
+	var revenue float64
+	var expenses float64
+	var taxRate float64
+
+	fmt.Print("Revenue: ")
+	fmt.Scan(&revenue)
+	
+	fmt.Print("Expenses: ")
+	fmt.Scan(&expenses)
+	
+	fmt.Print("Tax Rate: ")
+	fmt.Scan(&taxRate)
+	
+	ebt := EarningBeforeTax(revenue, expenses)
+	profit := NetProfit(ebt, taxRate)
+	ratio, _ := EBTToProfitRatio(ebt, profit)
+	output := fmt.Sprintf("Earnings Before Tax: %.2f \nProfit: %.2f \nEBT To Profit Ratio: %.2f%%", ebt, profit, ratio)
+	fmt.Printf("%s", output)
+	WriteBalanceToFile(output, "financial-info.txt")
+}
+
+func WriteBalanceToFile(balance string, filename string) error {
+	return os.WriteFile(filename, []byte(balance), 0644)
+}
 
 func EarningBeforeTax(revenue, expenses float64) (float64) {
 	return revenue - expenses
