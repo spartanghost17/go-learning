@@ -1,3 +1,3 @@
-Earnings Before Tax: 1000.00 
-Profit: 999.10 
-EBT To Profit Ratio: 100.09%
+Earnings Before Tax: 0.00 
+Profit: -1.00 
+EBT To Profit Ratio: 0.00%

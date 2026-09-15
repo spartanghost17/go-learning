@@ -7,32 +7,63 @@ import (
 	"strings"
 )
 
+var filename string = "financial-info.txt"
+
+type FromScanner struct {
+	err error
+}
+
+func(fs *FromScanner) getInput(prompt string) (float64) {	
+	if fs.err != nil {
+		return 0
+	}
+
+	var value float64
+	value, fs.err = GetUserInput(prompt)
+	return value
+}
+
+
 func Run() () {
-	var revenue float64
-	var expenses float64
-	var taxRate float64
+	sc := &FromScanner{}
 
-	var filename string = "financial-info.txt"
-
-	fmt.Print("Revenue: ")
-	fmt.Scan(&revenue)
+	expenses := sc.getInput("Expenses: ")
+	taxRate  := sc.getInput("Tax Rate: ")
+	revenue  := sc.getInput("Revenue: ")
 	
-	fmt.Print("Expenses: ")
-	fmt.Scan(&expenses)
-	
-	fmt.Print("Tax Rate: ")
-	fmt.Scan(&taxRate)
-
-	
+	if sc.err != nil {
+		fmt.Printf("Input failed: %v\n", sc.err)
+		return
+	}
 	
 	ebt := EarningBeforeTax(revenue, expenses)
 	profit := NetProfit(ebt, taxRate)
 	ratio, _ := EBTToProfitRatio(ebt, profit)
+	
 	output := fmt.Sprintf("Earnings Before Tax: %.2f \nProfit: %.2f \nEBT To Profit Ratio: %.2f%%", ebt, profit, ratio)
 	fmt.Printf("%s", output)
+	
 	WriteBalanceToFile(output, filename)
+	
 	text, _ := ReadBalanceFromFile(filename)
 	fmt.Println(text)
+}
+
+func GetUserInput(prompt string) (float64, error) {
+	fmt.Print(prompt)
+	var input float64
+	_, err := fmt.Scan(&input)
+	if err != nil {
+		return 0, fmt.Errorf("invalid input format: %w", err)
+	}
+	// value := strconv.ParseFloat(string(value), 64)
+	if input <= 0 {
+		message := fmt.Sprintf("%s cannot be <= 0, you entered %f",prompt, input)
+		//panic(message)
+		return 0, errors.New(message)
+		
+	}
+	return input, nil
 }
 
 func WriteBalanceToFile(balance string, filename string) error {
