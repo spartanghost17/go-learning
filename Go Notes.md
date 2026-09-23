@@ -1,205 +1,189 @@
-# Go Notes:
+# Go Notes
 
-========
+## Commands, Modules, and Packages
 
-## quick commands:
+```sh
+go run .                         # Compile and run the main package in the current directory.
+go build .                       # Build the current package (an executable for package main).
+go test ./...                    # Run tests in every package in the module.
+go mod init example.com/my-app   # Create a module and its go.mod file.
+go get example.com/library@latest # Add or update a dependency.
+go mod tidy                      # Add missing and remove unused module dependencies.
+```
 
-~$ `go run app.go` or `go run .` (which runs main module)
+- A **module** is a versioned collection of packages, defined by `go.mod`.
+- A **package** is a directory of Go source files that use the same `package` declaration.
+- `package main` identifies an executable package. Its entry point is `func main()`.
+- Identifiers beginning with an uppercase letter are exported from their package; lowercase identifiers are package-private.
 
-~$ `go run .` -> runs main package in this module
+## Types and Zero Values
 
-~$ `go build` -> build native binaries (.exe)
+Common types:
 
-~$ `go mod init mydomain.com/project-name` -> initialises module (basically a project)
+- `int`: signed integer whose size is implementation-specific (usually 32 or 64 bits).
+- `float64`: 64-bit floating-point number.
+- `string`: immutable sequence of bytes, commonly UTF-8 text.
+- `bool`: `true` or `false`.
+- `byte`: alias for `uint8`.
+- `rune`: alias for `int32`, usually representing one Unicode code point.
 
-~$ go get module-origin (`go get github.com/Pallinder/go-randomdata`) -> gets specific library
+Fixed-size integer types:
 
-~$ `go get` = `npm install` -> install all needed dependencies in `go.mod`
+| Type | Range |
+| --- | --- |
+| `int8` | -128 to 127 |
+| `uint8` | 0 to 255 |
+| `int32` | -2<sup>31</sup> to 2<sup>31</sup> - 1 |
+| `uint32` | 0 to 2<sup>32</sup> - 1 |
+| `int64` | -2<sup>63</sup> to 2<sup>63</sup> - 1 |
 
-Go has packages that contain files. Like Java packages, they can contain multiple files (e.g., a service package with .imageProcessor, imageInference, etc.).
+Every declared variable has a useful **zero value**:
 
-- package main: tell Go this is main entryPoint of project
-- main module: needed for Go build (\~$ go build)
+| Type | Zero value |
+| --- | --- |
+| Numeric types | `0` |
+| `string` | `""` |
+| `bool` | `false` |
+| Pointers, maps, slices, functions, channels, interfaces | `nil` |
+| Structs | Each field's zero value |
 
-> The information above are quick tips about running, compiling and using Go on daily
+## Functions and Errors
 
-## Types \& Null Values:
-
-=============================================
-
-- int: number without decimals
-- float64: decimal number
-- string: a string "Hello" or \`Hello\`
-- bool: true or false
-
-## Niche types:
-
-unit: unsigned integer, which means a strictly non-negative number
-int32: 32-bit signed integer (from -2^32-1 to +2^32-1), about -2 billion to 2 billion
-
-rune: an alias for int32; represents a Unicode code point (i.e. a single character)
-
-uint32: 32-bit unsigned integer (0 to about 4 billion)
-
-int64: 64-bit signed int (-9\*10^18 to +9\*10^18) = 9 quintillion
-
-int8: 8-bit signed integer (-128 to 127) -> 256 combinations
-
-uint8: 8-bit unsigned integer (0 to 256) -> 256 combinations
-
-Null values:
-
-\---------------
-
-int: 0
-
-float64: 0.0
-
-string: ""
-
-bool: false
-
-### Functions:
-
-====================
-
-Example signature ->
-
-func ReadBalanceFromFile(filename string) (string, error) {return "", nil}
-
-- Functions can return an error (must be caught in the func and the caller func with if err != nil {})
-
-- For function inside packages only functions starting with capital letter can start ex: `GetUser(principal string) (user User, err error) {}`
-
-#### Defer, Panic, Recover:
-
-Defer:
-
-A defer statement pushes a function call onto a list. The list of saved calls is executed after the surrounding function returns. Defer is commonly used to simplify functions that perform various clean-up actions.
-
-- Example:
-
-  Closing file buffers:
-
-  ```go
-  defer src.Close()
-  ```
-
-There are three simple rules:
-
-1. A deferred function’s arguments are evaluated when the defer statement is evaluated.
-
-2. Deferred function calls are executed in Last-In, First-Out order after the surrounding function returns.
-
-3. Deferred functions may read and assign to the returning function’s named return values.
+Functions can return multiple values. By convention, a fallible operation returns its result followed by an `error`.
 
 ```go
-func c() (i int) {
-    defer func() { i++ }()
-    return 1
+func PrintBalance(filename string) error {
+	balance, err := ReadBalanceFromFile(filename)
+	if err != nil {
+		return err
+	}
+	fmt.Println(balance)
+	return nil
 }
 ```
 
-## Pointers & References:
+Go does not force error handling, but ignoring a non-nil error usually produces incorrect behavior. Handle it, return it, or explicitly document why it is safe to ignore.
 
-pointers are good for:
+## Defer, Panic, and Recover
 
-- avoiding unnecessary value copies
-- directly mutate values
+`defer` schedules a call to run when the surrounding function returns. It is commonly used for cleanup after a successful acquisition.
 
-pointer example:
+```go
+func ReadNotes() error {
+	file, err := os.Open("notes.txt")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Read from file.
+	return nil
+}
+```
+
+Rules for deferred calls:
+
+1. Arguments are evaluated when `defer` is executed.
+2. Calls run in last-in, first-out order.
+3. A deferred function can inspect or change named return values.
+
+```go
+func incrementResult() (result int) {
+	defer func() { result++ }()
+	return 1
+}
+```
+
+Use `panic` for unrecoverable programmer errors or broken invariants, not ordinary expected failures. `recover` only works when called directly by a deferred function in the same goroutine; use it sparingly, usually at a program boundary.
+
+## Values and Pointers
+
+Go always passes arguments **by value**. Passing a pointer copies the pointer value, which still points at the original object.
+
+```go
+func Birthday(age *int) {
+	*age++ // Equivalent to (*age)++.
+}
+
 age := 32
-
-compyters stores in memory value 32 at a specific memory address [32][0xc000018050]
-
-agePointer := &age -> assigned the memory address
-
-- Go functions default behavior is pass by reference. Therefore:
-
-```go
-age := 32
-func ComputeAge(age int) {}
+Birthday(&age)
+fmt.Println(age) // 33
 ```
 
-> will create a local scope copy of age.
+Use a pointer when a function must modify the caller's value, when `nil` has useful meaning, or when copying a large value is undesirable. Small values such as `int` are normally passed by value. Go has pointers, but it does not have C++-style reference parameters.
 
-- If our app needs optimisation:
+## Structs and Methods
 
-for simple types such as `float`, `string`, `int` etc., we can then pass the address reference directly and edit directly the original value in memory without creating a copy. So if we are doing a lot of matrix operations etc. then editing the original value
-
-```go
-age := 32
-func ComputeAge(&age int) {
-    value := *age -> gets value from the passed pointer
-}
-```
-
-## Structs:
-
-```go
-type user struct {
-	firstName string
-	lastName  string
-	birthdate string
-	createdAt time.Time
-}
-
-func (u user) outputUserDetails() {
-	fmt.Println(u.firstName, u.lastName, u.birthdate, u.createdAt)
-}
-```
-
-### Receiver:
-
-func (u user) -> u here is the called the `Receiever`. `Receiver` are like any parameters, so if a method should edit a struct we have to pass the struct as a pointer `(u *user)`. For regular reads passing a copy `(u user)` is usually fine, unless the object is very big in memory. Think of a struct that stores a large matrix from the ML side of stuff needed for heavy computation.
-
-### new StructType pattern:
-
-Go doesn't really have constructors, but we can define our own construction reusable methods with a `factory function`, following the naming `New -> func New(...) user {}`
-
-here we can either return a copy or a \* pointer, to avoid copying a value multiple times.
-
-### Struct Embedding :
-
-You can embed structs as part of other structs.
+Structs group related fields. Use a value receiver when the method does not need to modify the receiver and copying it is appropriate. Use a pointer receiver when it modifies the receiver, the struct is large, or the type should not be copied.
 
 ```go
 type User struct {
-	firstName string
-	lastName  string
-	birthdate string
-	createdAt time.Time
+	FirstName string
+	LastName  string
+	CreatedAt time.Time
 }
 
-type Admin struct {
-    email    string
-    password string
-    user     User
+func (u User) FullName() string {
+	return u.FirstName + " " + u.LastName
+}
+
+func (u *User) Rename(firstName string) {
+	u.FirstName = firstName
 }
 ```
 
-`user User` is explicit embedding which gives a name to the field, meaning to access it we would need to do `admin.user.function_name`,
-
-With **anonymous** embedding, we only need to name specify the type, which will then give us direct access to its public fields & methods on Admin instance directly
-
-### Struct to Json :
-
-The idomatic approach is to use `encoding/json` module with `json.Marshal(myStruct)` to convert struct to json object, but the exportable fields must be made public (private fields - lower case - are never Marshalled)
+Go has no constructors. A function named `NewType` is a common convention when a type needs setup or validation.
 
 ```go
-Option 1: Export the fields and add JSON tags:
+func NewUser(firstName, lastName string) *User {
+	return &User{FirstName: firstName, LastName: lastName, CreatedAt: time.Now()}
+}
+```
+
+### Embedding
+
+A named struct field is ordinary composition. An embedded field promotes its fields and methods for convenient access; it is not inheritance.
+
+```go
+type Admin struct {
+	User          // Embedded: admin.FullName() is available.
+	Email string
+}
+
+type AuditRecord struct {
+	User User // Named: access with record.User.FullName().
+}
+```
+
+### JSON
+
+The `encoding/json` package marshals exported struct fields. JSON tags change field names and other encoding behavior.
+
+```go
 type Note struct {
 	Title     string    `json:"title"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-Then update New to use Title:, Content:, CreatedAt: and the getter methods to reference the exported fields.
+data, err := json.Marshal(note)
+```
 
-Option 2: Keep fields private but implement MarshalJSON:
-func (n *Note) MarshalJSON() ([]byte, error) {
-	type NoteAlias Note
-	return json.Marshal(&NoteAlias{
+Use `MarshalJSON` only when the default representation is not sufficient, such as when keeping fields private. Implement it with an auxiliary exported struct to avoid recursive calls to `MarshalJSON`.
+
+```go
+type privateNote struct {
+	title     string
+	content   string
+	createdAt time.Time
+}
+
+func (n privateNote) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Title     string    `json:"title"`
+		Content   string    `json:"content"`
+		CreatedAt time.Time `json:"created_at"`
+	}{
 		Title:     n.title,
 		Content:   n.content,
 		CreatedAt: n.createdAt,
@@ -207,45 +191,32 @@ func (n *Note) MarshalJSON() ([]byte, error) {
 }
 ```
 
-> Struct Tags can also be added to struct to change format of json fields
-
-```go
-type Note struct {
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
-}
-```
-
-# Interfaces
+## Interfaces
 
 An interface defines a set of methods. A type satisfies an interface implicitly when it has all of those methods; it does not need to declare that it implements the interface.
 
-Name interfaces after the behavior they provide. Single-method interfaces commonly use the `-er` suffix, such as `io.Reader`, `io.Writer`, and `fmt.Stringer`. For a `Save` method, `Saver` is a natural name.
+Name interfaces after the behavior they provide. Single-method interfaces commonly use the `-er` suffix, such as `io.Reader`, `io.Writer`, and `fmt.Stringer`.
 
 ```go
 type Saver interface {
 	Save(*Note) error
 }
-```
 
-Key conventions:
-
-1. Keep interfaces as small as the consumer needs. One or two methods is common, but there is no strict method limit.
-2. Define an interface near the code that consumes it, not automatically next to the concrete type.
-3. Accept the narrowest interface needed; return concrete types unless callers need an abstraction.
-4. Name interfaces by behavior: `Reader`, `Writer`, `Stringer`, not `IReader`.
-5. Do not introduce an interface only to abstract a single implementation. Add one when a consumer needs a seam, such as substituting a dependency in a test or using another implementation.
-6. Use `any` instead of `interface{}` for the empty interface in Go 1.18+.
-
-```go
-// This function only needs to save notes, so it accepts only a Saver.
 func CreateNote(store Saver, note *Note) error {
 	return store.Save(note)
 }
 ```
 
-For a storage implementation with several operations, define focused capability interfaces:
+Guidelines:
+
+1. Define interfaces near the code that consumes them.
+2. Accept the narrowest interface needed; return concrete types unless callers need an abstraction.
+3. Keep interfaces as small as the consumer needs. There is no strict method limit.
+4. Name interfaces by behavior, such as `Reader` or `Writer`, not `IReader`.
+5. Introduce an interface when a consumer needs a seam, not merely because a concrete type exists.
+6. Use `any` instead of `interface{}` for the empty interface in Go 1.18+.
+
+For a storage implementation with several operations, use focused capability interfaces. Compose them only where all operations are genuinely needed.
 
 ```go
 type NoteLoader interface {
@@ -259,11 +230,7 @@ type NoteDeleter interface {
 type NoteLister interface {
 	List() ([]*Note, error)
 }
-```
 
-Compose them only where code genuinely needs the full set of operations:
-
-```go
 type NoteStorage interface {
 	Saver
 	NoteLoader
@@ -272,4 +239,68 @@ type NoteStorage interface {
 }
 ```
 
-`NoteStorage` is not inherently bad. The problem is requiring every caller to depend on it when that caller only needs one capability.
+`NoteStorage` is useful for consumers that need the full API. A consumer that only saves notes should accept `Saver` instead.
+
+### Type Switches and Assertions
+
+Use a type switch when behavior depends on the concrete dynamic type stored in an interface.
+
+```go
+func printSomething(value any) {
+	switch v := value.(type) {
+	case int:
+		fmt.Println("Integer:", v)
+	case float64:
+		fmt.Println("Float:", v)
+	case string:
+		fmt.Println("String:", v)
+	default:
+		fmt.Println("Other:", v)
+	}
+}
+```
+
+Use the comma-`ok` form of a type assertion when the type may not match. The single-result form panics on a mismatch.
+
+```go
+number, ok := value.(int)
+if ok {
+	fmt.Println(number + 1)
+}
+```
+
+## Generics
+
+Generics let a function or type work with values of several types while preserving type safety. A type parameter has a **constraint** that specifies the permitted types and operations.
+
+```go
+func Add[T int | float64 | string](a, b T) T {
+	return a + b
+}
+```
+
+Generics are for operations that are structurally the same across types. Interfaces are for behavior: values that provide particular methods. They solve different problems and can be used together.
+
+## Arrays, Slices, and Maps
+
+An array has a fixed length, and its length is part of its type. A slice is a small descriptor over an underlying array and is the usual collection type.
+
+```go
+var array [3]int          // Fixed length: [3]int{0, 0, 0}
+numbers := []int{1, 2, 3} // Slice
+numbers = append(numbers, 4)
+```
+
+A nil slice can be ranged over and appended to. `append` may allocate a new underlying array, so always use its returned slice.
+
+Maps associate comparable keys with values.
+
+```go
+notes := make(map[string]Note)
+notes["welcome"] = Note{Title: "Welcome"}
+
+note, ok := notes["welcome"] // ok distinguishes a missing key from a zero value.
+delete(notes, "welcome")
+```
+
+Read from a nil map safely, but initialize a map with `make` or a map literal before writing to it.
