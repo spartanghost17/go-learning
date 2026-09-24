@@ -281,6 +281,55 @@ func Add[T int | float64 | string](a, b T) T {
 
 Generics are for operations that are structurally the same across types. Interfaces are for behavior: values that provide particular methods. They solve different problems and can be used together.
 
+## Loops and Traversal
+
+Go has one looping keyword, `for`. It covers the traditional `for`, a while-style loop, an infinite loop, and collection traversal.
+
+```go
+for i := 0; i < n; i++ { // Initializer; condition; post statement.
+	// Use i.
+}
+
+for left <= right { // While-style loop.
+	// Move left or right so the loop eventually ends.
+}
+
+for { // Infinite loop; leave with break or return.
+	break
+}
+```
+
+Use `range` to traverse a slice, array, map, or string. For a slice or array, it returns an index and a copy of the value. Assign through the index when changing elements.
+
+```go
+nums := []int{2, 4, 6}
+
+for i, value := range nums {
+	fmt.Println(i, value)
+	nums[i] = value * 2
+}
+
+for i := range nums { // Index only.
+	fmt.Println(nums[i])
+}
+
+for i := len(nums) - 1; i >= 0; i-- { // Reverse traversal.
+	fmt.Println(nums[i])
+}
+```
+
+Map traversal returns a key and value; its order is unspecified. String traversal returns the byte index and a decoded Unicode `rune`. Use indexed access (`s[i]`) when an algorithm intentionally works with ASCII bytes.
+
+```go
+for key, value := range counts {
+	fmt.Println(key, value)
+}
+
+for byteIndex, char := range "Go 123" {
+	fmt.Println(byteIndex, char)
+}
+```
+
 ## Arrays, Slices, and Maps
 
 ### Array
@@ -373,4 +422,115 @@ fmt.Println(featureA, ok, missing)
 
 alias := enabled
 alias["feature-a"] = true // Also changes enabled.
+```
+
+### Common Map Operations
+
+Go maps use indexing and built-in functions rather than Java-style methods. Map lookups for an absent key return the value type's zero value, so use the comma-`ok` form when presence matters.
+
+| Java operation | Go equivalent |
+| -------------- | ------------- |
+| `map.containsKey(key)` | `_, ok := m[key]` |
+| `map.get(key)` | `value := m[key]` (zero value if absent) |
+| `map.getOrDefault(key, def)` | `value, ok := m[key]`; use `def` when `!ok` |
+| `map.put(key, value)` | `m[key] = value` |
+| `map.remove(key)` | `delete(m, key)` |
+| `map.clear()` | `clear(m)` (Go 1.21+) |
+| `map.size()` | `len(m)` |
+
+```go
+frequency := make(map[int]int)
+frequency[5]++ // Missing int keys read as 0, so this starts at 1.
+
+value, ok := frequency[5]
+if !ok {
+	value = -1 // Equivalent to a custom getOrDefault.
+}
+
+if _, exists := frequency[10]; !exists { // Put only if absent.
+	frequency[10] = 1
+}
+
+delete(frequency, 5)
+```
+
+Use `map[T]struct{}` for a set; `struct{}` occupies no storage. A map element is not addressable, so retrieve, modify, and assign it back when the value is a struct.
+
+```go
+seen := map[string]struct{}{}
+seen["go"] = struct{}{}
+_, exists := seen["go"]
+
+type Score struct{ Value int }
+scores := map[string]Score{"Ada": {Value: 10}}
+score := scores["Ada"]
+score.Value++
+scores["Ada"] = score
+```
+
+## LeetCode Utility Reference
+
+These are common built-ins and standard-library functions. Import the named package before using its functions.
+
+### Built-ins and Slices
+
+| Task | Go |
+| ---- | -- |
+| Length or map size | `len(values)` |
+| Slice or array capacity | `cap(values)` |
+| Add values to a slice | `values = append(values, x)` |
+| Copy into an existing slice | `copied := copy(dst, src)` |
+| Zero slice elements or remove all map entries | `clear(values)` / `clear(m)` (Go 1.21+) |
+| Smaller or larger ordered value | `min(a, b)` / `max(a, b)` (Go 1.21+) |
+| Test, copy, reverse, sort, or binary-search a slice | `slices.Contains`, `slices.Clone`, `slices.Reverse`, `slices.Sort`, `slices.BinarySearch` (`slices`, Go 1.21+) |
+
+`copy` returns the number of copied elements and copies only up to the shorter length. `clear` keeps a slice's length but resets its elements to zero values. `slices.BinarySearch` requires sorted input.
+
+```go
+import "slices"
+
+nums := []int{3, 1, 2}
+slices.Sort(nums)                 // [1, 2, 3]
+found := slices.Contains(nums, 2) // true
+index, found := slices.BinarySearch(nums, 2)
+```
+
+For older Go versions or custom ordering, use `sort.Ints`, `sort.Strings`, `sort.Slice`, and `sort.Search` from `sort`. `sort.Search` is a useful binary-search primitive: it returns the first index where its predicate is true, or `n` if none exists.
+
+```go
+index := sort.Search(len(nums), func(i int) bool {
+	return nums[i] >= target
+})
+```
+
+### Strings, Numbers, and Characters
+
+| Task | Go |
+| ---- | -- |
+| Substring or prefix/suffix check | `strings.Contains`, `strings.HasPrefix`, `strings.HasSuffix` |
+| Find a substring | `strings.Index` (`-1` if absent) |
+| Split or join strings | `strings.Split`, `strings.Fields`, `strings.Join` |
+| Replace or trim | `strings.ReplaceAll`, `strings.TrimSpace` |
+| String and integer conversion | `strconv.Atoi`, `strconv.Itoa` |
+| Parse a number with a base | `strconv.ParseInt(text, base, bitSize)` |
+| Unicode digit or letter check | `unicode.IsDigit(r)`, `unicode.IsLetter(r)` |
+| Unicode alphanumeric check | `unicode.IsLetter(r) || unicode.IsDigit(r)` |
+| Whitespace or case conversion | `unicode.IsSpace(r)`, `unicode.ToLower(r)`, `unicode.ToUpper(r)` |
+
+Go has no `Character` class. Use a `rune` for one Unicode code point and the `unicode` package for character classification. `range` over a string yields runes; indexing a string yields bytes. Use direct comparisons for ASCII-only problems.
+
+```go
+import "unicode"
+
+for _, char := range text {
+	if unicode.IsLetter(char) || unicode.IsDigit(char) {
+		// char is alphanumeric Unicode text.
+	}
+}
+
+func isASCIIDigitOrLetter(b byte) bool {
+	return ('0' <= b && b <= '9') ||
+		('a' <= b && b <= 'z') ||
+		('A' <= b && b <= 'Z')
+}
 ```
