@@ -86,12 +86,27 @@ func Run() {
 	fmt.Println("\nDoubled numbers:", d1Numbers)
 	fmt.Println("Doubled numbers:", t1Numbers)
 
+	// anonymous function
 	transformed4 := transformNumbers(&numbers, func(number int) int {
 		return number * 2
 	})
 
 	fmt.Println("Anonymous function:", transformed4)
 
+	//---
+
+	double := createTransformer(2)
+	triple := createTransformer(3)
+
+	fmt.Println("double:", transformNumbers(&numbers, double))
+	fmt.Println("double:", transformNumbers(&numbers, triple))
+
+}
+
+func createTransformer(factor int) func(int) int {
+	return func(number int) int {
+		return number * factor
+	}
 }
 
 func transformNumbers(numbers *[]int, transform transformFn) []int {

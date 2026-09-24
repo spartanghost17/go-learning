@@ -64,6 +64,31 @@ func PrintBalance(filename string) error {
 
 Go does not force error handling, but ignoring a non-nil error usually produces incorrect behavior. Handle it, return it, or explicitly document why it is safe to ignore.
 
+## Closures
+
+A closure is a function value that uses variables from its surrounding function. It captures variables, not a one-time copy of their values, so changes to captured state remain visible on later calls.
+
+```go
+func MakeCounter() func() int {
+	count := 0
+
+	return func() int {
+		count++
+		return count
+	}
+}
+
+counter := MakeCounter()
+fmt.Println(counter()) // 1
+fmt.Println(counter()) // 2
+```
+
+The returned anonymous function is a value held by `counter`. Because that closure still references `count`, Go's garbage collector keeps `count` alive after `MakeCounter` returns. This does not mean `count` is a static variable or that it must be allocated in a particular place; the compiler chooses the storage. Once the closure is no longer reachable, its captured state can be collected.
+
+Each call to `MakeCounter` creates independent captured state. Closures are useful for callbacks, such as the comparison function passed to `sort.Slice`, and for configuring behavior. They should not be used to share mutable state between goroutines without synchronization.
+
+`MakeCounter` is a **factory function**: it creates and returns a configured value, here a closure with its own private `count`. Factory functions can return any type, not only closures; a closure factory is useful when each caller needs independent state or behavior.
+
 ## Defer, Panic, and Recover
 
 `defer` schedules a call to run when the surrounding function returns. It is commonly used for cleanup after a successful acquisition.
@@ -95,6 +120,55 @@ func incrementResult() (result int) {
 ```
 
 Use `panic` for unrecoverable programmer errors or broken invariants, not ordinary expected failures. `recover` only works when called directly by a deferred function in the same goroutine; use it sparingly, usually at a program boundary.
+
+## Goroutines and Shared State
+
+A **goroutine** is a concurrently executing function started with `go`. Goroutines are lightweight and scheduled by the Go runtime rather than being one operating-system thread each. Starting a goroutine does not wait for it, and when `main` returns, the program exits even if goroutines are still running.
+
+```go
+go sendEmail(user) // Starts sendEmail concurrently.
+
+var wg sync.WaitGroup
+wg.Add(1) // Add before starting the goroutine.
+go func() {
+	defer wg.Done()
+	sendEmail(user)
+}()
+wg.Wait() // Wait for all work tracked by wg.
+```
+
+Goroutines may communicate through channels or safely share state using synchronization such as `sync.Mutex` or `sync/atomic`. Multiple goroutines must not read and write the same ordinary variable at the same time. That is a data race and can produce incorrect results.
+
+```go
+func MakeSafeCounter() func() int {
+	var mu sync.Mutex
+	count := 0
+
+	return func() int {
+		mu.Lock()
+		defer mu.Unlock()
+
+		count++
+		return count
+	}
+}
+
+counter := MakeSafeCounter()
+go counter()
+go counter() // Safe: the closure protects its captured state with mu.
+```
+
+Passing values as function arguments makes each goroutine's input explicit and avoids accidentally sharing a changing outer variable.
+
+```go
+for _, name := range names {
+	go func(name string) {
+		fmt.Println(name)
+	}(name)
+}
+```
+
+Use `go test -race ./...` to detect data races during tests. It finds races that occur in the executed code paths; a clean result is not proof that every possible race is absent.
 
 ## Values and Pointers
 
