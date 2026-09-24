@@ -29,23 +29,23 @@ Common types:
 
 Fixed-size integer types:
 
-| Type | Range |
-| --- | --- |
-| `int8` | -128 to 127 |
-| `uint8` | 0 to 255 |
-| `int32` | -2<sup>31</sup> to 2<sup>31</sup> - 1 |
-| `uint32` | 0 to 2<sup>32</sup> - 1 |
-| `int64` | -2<sup>63</sup> to 2<sup>63</sup> - 1 |
+| Type     | Range                                 |
+| -------- | ------------------------------------- |
+| `int8`   | -128 to 127                           |
+| `uint8`  | 0 to 255                              |
+| `int32`  | -2<sup>31</sup> to 2<sup>31</sup> - 1 |
+| `uint32` | 0 to 2<sup>32</sup> - 1               |
+| `int64`  | -2<sup>63</sup> to 2<sup>63</sup> - 1 |
 
 Every declared variable has a useful **zero value**:
 
-| Type | Zero value |
-| --- | --- |
-| Numeric types | `0` |
-| `string` | `""` |
-| `bool` | `false` |
-| Pointers, maps, slices, functions, channels, interfaces | `nil` |
-| Structs | Each field's zero value |
+| Type                                                    | Zero value              |
+| ------------------------------------------------------- | ----------------------- |
+| Numeric types                                           | `0`                     |
+| `string`                                                | `""`                    |
+| `bool`                                                  | `false`                 |
+| Pointers, maps, slices, functions, channels, interfaces | `nil`                   |
+| Structs                                                 | Each field's zero value |
 
 ## Functions and Errors
 
@@ -283,6 +283,8 @@ Generics are for operations that are structurally the same across types. Interfa
 
 ## Arrays, Slices, and Maps
 
+### Array
+
 An array has a fixed length, and its length is part of its type. A slice is a small descriptor over an underlying array and is the usual collection type.
 
 ```go
@@ -291,9 +293,47 @@ numbers := []int{1, 2, 3} // Slice
 numbers = append(numbers, 4)
 ```
 
+`make` does **not** create arrays. Create an array with a declaration or an array literal. `make` creates initialized slices, maps, and channels; for a slice, its first argument after the type is its length and the optional second argument is its capacity.
+
+```go
+var scores [3]int           // [3]int{0, 0, 0}
+names := [2]string{"Ada", "Lin"}
+
+values := make([]int, 3)    // len 3, cap 3: []int{0, 0, 0}
+buffer := make([]byte, 0, 64) // len 0, cap 64
+```
+
 A nil slice can be ranged over and appended to. `append` may allocate a new underlying array, so always use its returned slice.
 
-Maps associate comparable keys with values.
+#### Some useful functions:
+
+len(arr) -> give current length of array
+cap(arr) -> total capacity of an array
+slicing can always reslice by selecting more items towards the right of the array but never the left.
+
+1. sized array
+
+```go
+var arr1 [4]int = [4]int{1, 2, 3, 4}
+slice1 := arr1[1:]
+slice2 := slice1[:1]
+slice2 := slice2[:3]
+```
+
+> // so here slice2 can reslice towards the right and grab more elements, but will never be able to grab `arr1[0]` because slice1 was created from `arr1[1:]`. So item at index zero is permanantly unreachable. Therefore, slice2 and slice1 cap() = 3, and arr1 cap() = 4
+
+2. dynamic array
+
+```go
+var arr1 []int = []int{1, 2, 3, 4}
+append(arr1, 5)
+```
+
+> append create a new array under the hood and returns that slice. To overwrite the previous array do arr1 = append(arr1, 5). Or get a new array with arr2 := append(arr1, 5).
+
+### Maps
+
+Maps associate unique, comparable keys with values. Valid key types include numbers, strings, pointers, arrays, structs whose fields are comparable, and interfaces containing comparable dynamic values. Slices, maps, and functions cannot be map keys.
 
 ```go
 notes := make(map[string]Note)
@@ -303,4 +343,34 @@ note, ok := notes["welcome"] // ok distinguishes a missing key from a zero value
 delete(notes, "welcome")
 ```
 
-Read from a nil map safely, but initialize a map with `make` or a map literal before writing to it.
+Use `make` to create an empty writable map. Its optional size hint reserves space for approximately that many entries; it does not limit the map's size. A map literal is useful when its initial entries are known.
+
+```go
+counts := make(map[string]int) // Empty, writable map.
+seen := make(map[string]bool, 100) // Size hint, not a maximum.
+ports := map[string]int{
+	"http":  80,
+	"https": 443,
+}
+```
+
+A map's zero value is `nil`. Reading from, ranging over, deleting from, or calling `len` on a nil map is safe; a read returns the value type's zero value. Writing to a nil map panics, so initialize it with `make` or a literal first.
+
+```go
+var counts map[string]int
+fmt.Println(counts["missing"]) // 0
+delete(counts, "missing")      // Safe.
+// counts["new"] = 1           // Panic: assignment to entry in nil map.
+```
+
+The comma-`ok` lookup distinguishes a missing key from a key whose value is the zero value. Map iteration order is deliberately unspecified, so do not rely on it. Maps are reference-like values: assigning a map or passing it to a function copies a header that refers to the same underlying data. Maps are not safe for concurrent reads and writes without synchronization.
+
+```go
+enabled := map[string]bool{"feature-a": false}
+featureA, ok := enabled["feature-a"] // false, true
+_, missing := enabled["feature-b"] // _, false
+fmt.Println(featureA, ok, missing)
+
+alias := enabled
+alias["feature-a"] = true // Also changes enabled.
+```
