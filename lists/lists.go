@@ -52,4 +52,15 @@ func Run() {
 	var test1 string = "Hello, World!"
 	fmt.Println("Test string:", test1[0:4])
 
+
+	notes := make(map[string]string)
+	notes["welcome"] = "Welcome to the notes app!"
+
+	note, ok := notes["welcome"] // ok distinguishes a missing key from a zero value.
+	fmt.Println("Note:", note, "Exists:", ok)
+	
+	delete(notes, "welcome")
+	
+	note1, ok1 := notes["welcome"] // ok1 distinguishes a missing key from a zero value.
+	fmt.Println("Note:", note1, "Exists:", ok1)
 }
