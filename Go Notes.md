@@ -64,6 +64,36 @@ func PrintBalance(filename string) error {
 
 Go does not force error handling, but ignoring a non-nil error usually produces incorrect behavior. Handle it, return it, or explicitly document why it is safe to ignore.
 
+### Variadic Functions
+
+A variadic parameter accepts zero or more arguments of one type. Write `...T` in the parameter list; inside the function, that parameter is a `[]T` slice. A function can have only one variadic parameter, and it must be the final parameter.
+
+```go
+func Sum(numbers ...int) int {
+	total := 0
+	for _, number := range numbers {
+		total += number
+	}
+	return total
+}
+
+fmt.Println(Sum())          // 0
+fmt.Println(Sum(1, 2, 3))   // 6
+```
+
+Pass an existing slice to a variadic parameter by placing `...` after the slice. Without the suffix, Go treats the slice as one argument and the call does not match a parameter of type `...int`.
+
+```go
+numbers := []int{4, 5, 6}
+fmt.Println(Sum(numbers...)) // 15
+
+func Log(prefix string, messages ...string) {
+	for _, message := range messages {
+		fmt.Println(prefix, message)
+	}
+}
+```
+
 ## Closures
 
 A closure is a function value that uses variables from its surrounding function. It captures variables, not a one-time copy of their values, so changes to captured state remain visible on later calls.

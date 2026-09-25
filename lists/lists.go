@@ -101,6 +101,13 @@ func Run() {
 	fmt.Println("double:", transformNumbers(&numbers, double))
 	fmt.Println("double:", transformNumbers(&numbers, triple))
 
+	fact := factorial(3)
+	fmt.Println("factorial:", fact)
+
+	sum := sumup(1, 2, 3, 4, 5, 6)
+	fmt.Println("Sum:", sum, "\n")
+	anoterSum := sumup(1, numbers...)
+	fmt.Println("Another sum:", anoterSum)
 }
 
 func createTransformer(factor int) func(int) int {
@@ -132,4 +139,21 @@ func double(number int) int {
 
 func triple(number int) int {
 	return number * 3
+}
+
+func factorial(n int) int {
+	if n <= 1 {
+		return 1
+	}
+
+	return n * factorial(n-1)
+}
+
+func sumup(prefix int, numbers ...int) int {
+	sum := 0
+	fmt.Println("PrefixVal", prefix)
+	for _, val := range numbers {
+		sum += val
+	}
+	return sum
 }
