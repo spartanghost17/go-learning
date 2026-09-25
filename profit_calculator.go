@@ -1,6 +1,6 @@
 package main
 
-import "com.example/investement-calculator/lists"
+import "com.example/investement-calculator/calculator"
 
 //"fmt"
 
@@ -9,5 +9,6 @@ func main() {
 	//pointers.Run()
 	//user.Run()
 	//notes.Run()
-	lists.Run()
+	//lists.Run()
+	calculator.Run()
 }

@@ -1,0 +1,17 @@
+[
+  {
+    "name": "tomatoes",
+    "price": 10,
+    "price_after_tax": 11
+  },
+  {
+    "name": "Iphone",
+    "price": 20,
+    "price_after_tax": 22
+  },
+  {
+    "name": "Laptop",
+    "price": 30,
+    "price_after_tax": 33
+  }
+]
